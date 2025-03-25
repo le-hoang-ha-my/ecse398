@@ -3,9 +3,10 @@ import os
 import json
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QCheckBox, QFileDialog, QHBoxLayout, QScrollArea
+    QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QCheckBox,
+    QFileDialog, QHBoxLayout, QScrollArea, QMessageBox, QGraphicsDropShadowEffect
 )
-from PyQt5.QtGui import QFont, QIcon, QPixmap, QPalette, QBrush
+from PyQt5.QtGui import QFont, QIcon, QPixmap, QPalette, QBrush, QColor
 from PyQt5.QtCore import Qt
 
 
@@ -13,8 +14,8 @@ class BatteryDataViewer(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.data = {}  # Dictionary to store parsed JSON data
-        self.timestamps = []  # List to store time points
+        self.data = {}
+        self.timestamps = [] 
         self.selected_keys = []  # User-selected parameters
 
         self.initUI()
@@ -24,20 +25,22 @@ class BatteryDataViewer(QWidget):
         """Initialize the GUI layout and components."""
         layout = QVBoxLayout()
 
-        # Load Data Button
+        # Load data button
         self.load_button = QPushButton("📂 Load Battery Data")
         self.load_button.clicked.connect(self.load_data)
+        self.addGlowEffect(self.load_button)
         layout.addWidget(self.load_button)
 
-        # Display Loaded Data Info
+        # Display loaded data info
         self.data_label = QLabel("No data loaded.")
         self.data_label.setAlignment(Qt.AlignCenter)
+        self.addGlowEffect(self.data_label)
         layout.addWidget(self.data_label)
 
-        # Scrollable Checkbox Layout (For many parameters)
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.checkbox_container = QWidget()
+        self.checkbox_container.setStyleSheet("background-color: rgba(30, 30, 30, 160);")
         self.checkbox_layout = QVBoxLayout(self.checkbox_container)
         self.scroll_area.setWidget(self.checkbox_container)
         layout.addWidget(self.scroll_area)
@@ -47,11 +50,18 @@ class BatteryDataViewer(QWidget):
 
         self.show_recent_button = QPushButton("📊 Show Instantaneous Data")
         self.show_recent_button.clicked.connect(self.show_recent)
+        self.addGlowEffect(self.show_recent_button)
         button_layout.addWidget(self.show_recent_button)
 
         self.plot_button = QPushButton("📈 Plot Data Over Time")
         self.plot_button.clicked.connect(self.plot_data)
+        self.addGlowEffect(self.plot_button)
         button_layout.addWidget(self.plot_button)
+
+        self.export_button = QPushButton("🐞 Export Debug JSON")
+        self.export_button.clicked.connect(self.export_debug_json)
+        self.addGlowEffect(self.export_button)
+        button_layout.addWidget(self.export_button)
 
         layout.addLayout(button_layout)
 
@@ -59,37 +69,31 @@ class BatteryDataViewer(QWidget):
         self.setWindowTitle("🚀 Rocket Battery Monitoring System")
         self.setGeometry(100, 100, 600, 400)
 
-        # Hardcoded window icon (Rocket Emoji Icon)
         self.setWindowIcon(QIcon(QPixmap(32, 32)))
 
-        # Resize background image
         self.setBackgroundImage()
 
-    def setBackgroundImage(self):
-        """Resize and set the background image while maintaining aspect ratio."""
-        image_path = os.path.abspath("images/background.jpg")  # Path to background image
+    def addGlowEffect(self, widget):
+        glow = QGraphicsDropShadowEffect()
+        glow.setBlurRadius(10)
+        glow.setColor(QColor("#FFFFFF"))
+        glow.setOffset(0)
+        widget.setGraphicsEffect(glow)
 
+    def setBackgroundImage(self):
+        image_path = os.path.abspath("images/background.jpg")
         if os.path.exists(image_path):
             pixmap = QPixmap(image_path)
-
-            # Resize the image to fit the widget while keeping the aspect ratio
-            scaled_pixmap = pixmap.scaled(
-                self.size(),  # Scale to widget size
-                Qt.KeepAspectRatioByExpanding,  # Keep aspect ratio while covering
-                Qt.SmoothTransformation  # Smooth scaling
-            )
-
+            scaled_pixmap = pixmap.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
             palette = self.palette()
             palette.setBrush(QPalette.Background, QBrush(scaled_pixmap))
             self.setPalette(palette)
 
     def resizeEvent(self, event):
-        """Ensure background image resizes proportionally when the window is resized."""
         self.setBackgroundImage()
         super().resizeEvent(event)
 
     def applyStyles(self):
-        """Apply a professional aerospace-themed style."""
         self.setStyleSheet("""
             QPushButton {
                 background-color: rgba(58, 63, 68, 200);
@@ -108,13 +112,16 @@ class BatteryDataViewer(QWidget):
                 font-weight: bold;
                 color: #D8DEE9;
                 background-color: rgba(30, 30, 30, 180);
-                padding: 5px;
-                border-radius: 5px;
+                padding: 8px;
+                border-radius: 8px;
             }
             QCheckBox {
                 font-size: 14px;
                 padding: 3px;
+                color: #D8DEE9;
                 background-color: rgba(30, 30, 30, 180);
+                border-radius: 5px;
+                padding: 5px;
             }
             QCheckBox::indicator {
                 width: 16px;
@@ -122,36 +129,35 @@ class BatteryDataViewer(QWidget):
             }
         """)
 
-        # Custom font settings
         font = QFont("Arial", 12)
         self.data_label.setFont(font)
         self.load_button.setFont(QFont("Arial", 12, QFont.Bold))
 
     def load_data(self):
-        """Load JSON data from the data/ folder."""
         options = QFileDialog.Options()
         file_name, _ = QFileDialog.getOpenFileName(self, "Open JSON File", "data/", "JSON Files (*.json);;All Files (*)", options=options)
-        
-        if file_name:
-            with open(file_name, 'r') as file:
-                self.data = json.load(file)
 
-            self.timestamps = self.data.get("time", [])
-            self.update_checkboxes()
+        if not file_name:
+            QMessageBox.warning(self, "No File Selected", "⚠️ You must select a data file!", QMessageBox.Ok)
+            return
+
+        with open(file_name, 'r') as file:
+            self.data = json.load(file)
+
+        self.timestamps = self.data.get("time", [])
+        self.update_checkboxes()
 
     def update_checkboxes(self):
-        """Create checkboxes for available data keys."""
-        # Clear old checkboxes
         for i in reversed(range(self.checkbox_layout.count())):
             widget = self.checkbox_layout.itemAt(i).widget()
             if widget is not None:
                 widget.setParent(None)
 
-        # Create new checkboxes
         self.checkboxes = {}
         for key in self.data.keys():
-            if key != "time":  # Skip timestamps
+            if key != "time":
                 checkbox = QCheckBox(key)
+                self.addGlowEffect(checkbox)
                 self.checkbox_layout.addWidget(checkbox)
                 self.checkboxes[key] = checkbox
 
@@ -168,14 +174,13 @@ class BatteryDataViewer(QWidget):
             self.data_label.setText("⚠️ No parameter selected.")
             return
 
-        last_index = -1  # Last time point
+        last_index = -1
         recent_values = {key: self.data[key][last_index] for key in self.selected_keys if key in self.data}
 
         display_text = "📊 Instantaneous Data:\n" + "\n".join([f"{key}: {value}" for key, value in recent_values.items()])
         self.data_label.setText(display_text)
 
     def plot_data(self):
-        """Plot selected parameters over time."""
         self.get_selected_keys()
         if not self.selected_keys:
             self.data_label.setText("⚠️ No parameter selected for plotting.")
@@ -188,10 +193,32 @@ class BatteryDataViewer(QWidget):
 
         plt.xlabel("Time")
         plt.ylabel("Values")
-        plt.title("Battery System Data Over Time")
+        plt.title("Rocket Battery System Data Over Time")
         plt.legend()
         plt.grid(True)
         plt.show()
+
+    def export_debug_json(self):
+        if not self.data:
+            QMessageBox.information(self, "No Data", "❌ No data to export. Please load a JSON file first.")
+            return
+
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Debug JSON",
+            "debug_output.json",
+            "JSON Files (*.json);;All Files (*)",
+            options=options
+        )
+
+        if file_name:
+            try:
+                with open(file_name, 'w') as f:
+                    json.dump(self.data, f, indent=4)
+                QMessageBox.information(self, "Export Successful", f"✅ Data exported to:\n{file_name}")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Failed", f"❌ Failed to export data:\n{str(e)}")
 
 
 if __name__ == "__main__":
