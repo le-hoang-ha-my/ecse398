@@ -81,7 +81,7 @@ class BatteryDataViewer(QWidget):
         widget.setGraphicsEffect(glow)
 
     def setBackgroundImage(self):
-        image_path = os.path.abspath("images/background.jpg")
+        image_path = "../images/background.jpg"
         if os.path.exists(image_path):
             pixmap = QPixmap(image_path)
             scaled_pixmap = pixmap.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
