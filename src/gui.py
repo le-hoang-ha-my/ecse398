@@ -224,7 +224,7 @@ class BatteryDataViewer(QWidget):
         
         # Join all chunks together
         full_data = ''.join(chunks)
-        self.data_label.setText(f"Received complete data: {full_data}")
+        self.data_label.setText(f"Data received: {full_data}")
         
         try:
             # Parse the data - expecting a list format
@@ -387,15 +387,13 @@ class BatteryDataViewer(QWidget):
 
     def addGlowEffect(self, widget):
         shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(5)
-        shadow.setColor(QColor("#ADB5BD"))
-        shadow.setOffset(0, 1)
+        shadow.setBlurRadius(8)
+        shadow.setColor(QColor("#B0BEC5"))
+        shadow.setOffset(0, 2)
         widget.setGraphicsEffect(shadow)
 
     def setBackgroundImage(self):
-        # For a professional look, we'll use a solid light background color
-        # instead of an image background
-        self.setStyleSheet("background-color: #F8F9FA;")
+        self.setStyleSheet("background-color: #F2EBCC;")
 
     def resizeEvent(self, event):
         self.setBackgroundImage()
@@ -404,39 +402,42 @@ class BatteryDataViewer(QWidget):
     def applyStyles(self):
         self.setStyleSheet("""
             QWidget {
-                background-color: #F8F9FA;
-                color: #212529;
+                background-color: #FAFAFA;
+                color: #212121;
+                selection-background-color: #1976D2;
+                selection-color: #FFFFFF;  
             }
             QPushButton {
-                background-color: #FFFFFF;
-                border: 1px solid #DEE2E6;
-                padding: 8px;
-                border-radius: 4px;
+                background-color: #CDE5D9;
+                border: 1px solid #90CAF9;
+                padding: 8px 12px;
+                border-radius: 6px;
                 font-weight: bold;
                 font-size: 13px;
-                color: #0D6EFD;
+                color: #0D47A1;
             }
             QPushButton:hover {
-                background-color: #F1F8FF;
-                border-color: #0D6EFD;
+            background-color: #E3F2FD;
+            border: 1px solid #1976D2;
             }
             QPushButton:disabled {
-                background-color: #E9ECEF;
-                border-color: #DEE2E6;
-                color: #ADB5BD;
+                background-color: #E0E0E0;
+                border-color: #BDBDBD;
+                color: #9E9E9E;
             }
             QLabel {
                 font-size: 13px;
-                color: #212529;
+                font-weight: bold;
+                color: #212121;
                 background-color: #FFFFFF;
                 padding: 8px;
-                border-radius: 4px;
-                border: 1px solid #DEE2E6;
+                border-radius: 6px;
+                border: 1px solid #E0E0E0;
             }
             QCheckBox {
                 font-size: 13px;
                 padding: 5px;
-                color: #212529;
+                color: #212121;
                 background-color: transparent;
             }
             QCheckBox::indicator {
@@ -444,53 +445,68 @@ class BatteryDataViewer(QWidget):
                 height: 16px;
             }
             QProgressBar {
-                border: 1px solid #DEE2E6;
+                border: 1px solid #90CAF9;
                 border-radius: 4px;
                 text-align: center;
-                background-color: #E9ECEF;
+                background-color: #E3F2FD;
                 height: 10px;
             }
             QProgressBar::chunk {
-                background-color: #0D6EFD;
+                background-color: #1976D2;
             }
             QGroupBox {
                 font-size: 13px;
                 font-weight: bold;
-                border: 1px solid #DEE2E6;
-                border-radius: 4px;
+                border: 1px solid #90CAF9;
+                border-radius: 6px;
                 margin-top: 1ex;
                 padding: 10px;
                 background-color: #FFFFFF;
+                color: #212121;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding: 0 5px;
-                color: #0D6EFD;
+                color: #1565C0;
             }
-            QComboBox, QSpinBox {
-                border: 1px solid #DEE2E6;
-                border-radius: 3px;
-                padding: 5px;
+            QComboBox {
+                border: 1px solid #B0BEC5;
+                border-radius: 4px;
+                padding: 6px 10px;
                 background-color: #FFFFFF;
-                color: #212529;
-                min-height: 25px;
+                color: #212121;
+                min-height: 28px;
+                min-width: 160px;  /* Make measurement field wider */
+                selection-background-color: #1976D2;
+                selection-color: #FFFFFF;
             }
-            QComboBox::drop-down {
-                border: 0px;
-            }
-            QComboBox::down-arrow {
-                width: 14px;
-                height: 14px;
+            QSpinBox {
+                border: 1px solid #B0BEC5;
+                border-radius: 4px;
+                padding: 6px 8px;
+                background-color: #FFFFFF;
+                color: #212121;
+                min-height: 28px;
             }
             QScrollArea {
-                border: 1px solid #DEE2E6;
-                border-radius: 4px;
+                border: 1px solid #CFD8DC;
+                border-radius: 6px;
                 background-color: #FFFFFF;
+            }
+            QLineEdit {
+                border: 1px solid #B0BEC5;
+                border-radius: 4px;
+                padding: 6px 8px;
+                background-color: #FFFFFF;
+                color: #212121;
+                selection-background-color: #1976D2;
+                selection-color: #FFFFFF;
+                font-weight: bold;
             }
         """)
 
-        font = QFont("Arial", 12)
+        font = QFont("Segoe UI", 11)
         self.data_label.setFont(font)
 
     def load_data(self):
