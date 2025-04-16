@@ -214,7 +214,7 @@ class BatteryDataViewer(QWidget):
 
     def on_data_chunk_received(self, chunk):
         """Handle a single chunk of data from the BLE device"""
-        self.data_label.setText(f"Receiving data... Latest chunk: {chunk}")
+        self.data_label.setText(f"Receiving data... (Chunk received)")
 
     def on_data_complete(self, chunks):
         """Process all received chunks once complete"""
@@ -328,14 +328,14 @@ class BatteryDataViewer(QWidget):
         layout.addWidget(command_group)
         
         # Request button
-        self.request_button = QPushButton("🔌 Request Data from Battery")
+        self.request_button = QPushButton("Request Data from Battery")
         self.request_button.clicked.connect(self.send_request)
         self.request_button.setEnabled(False)  # Disabled until connected
         self.addGlowEffect(self.request_button)
         layout.addWidget(self.request_button)
         
         # Load data button
-        self.load_button = QPushButton("📂 Load Battery Data")
+        self.load_button = QPushButton("Load Battery Data")
         self.load_button.clicked.connect(self.load_data)
         self.addGlowEffect(self.load_button)
         layout.addWidget(self.load_button)
@@ -349,7 +349,7 @@ class BatteryDataViewer(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.checkbox_container = QWidget()
-        self.checkbox_container.setStyleSheet("background-color: rgba(30, 30, 30, 160);")
+        self.checkbox_container.setStyleSheet("background-color: #FFFFFF;")
         self.checkbox_layout = QVBoxLayout(self.checkbox_container)
         self.scroll_area.setWidget(self.checkbox_container)
         layout.addWidget(self.scroll_area)
@@ -357,17 +357,17 @@ class BatteryDataViewer(QWidget):
         # Buttons to show data
         button_layout = QHBoxLayout()
 
-        self.show_recent_button = QPushButton("📊 Show Latest Data")
+        self.show_recent_button = QPushButton("Show Latest Data")
         self.show_recent_button.clicked.connect(self.show_recent)
         self.addGlowEffect(self.show_recent_button)
         button_layout.addWidget(self.show_recent_button)
 
-        self.plot_button = QPushButton("📈 Plot Data Over Time")
+        self.plot_button = QPushButton("Plot Data Over Time")
         self.plot_button.clicked.connect(self.plot_data)
         self.addGlowEffect(self.plot_button)
         button_layout.addWidget(self.plot_button)
 
-        self.export_button = QPushButton("💾 Export Data")
+        self.export_button = QPushButton("Export Data")
         self.export_button.clicked.connect(self.export_debug_json)
         self.addGlowEffect(self.export_button)
         button_layout.addWidget(self.export_button)
@@ -375,33 +375,27 @@ class BatteryDataViewer(QWidget):
         layout.addLayout(button_layout)
 
         self.setLayout(layout)
-        self.setWindowTitle("🔋 Battery Monitoring System")
+        self.setWindowTitle("Battery Monitoring System")
         self.setGeometry(100, 100, 600, 550)  # Increased height for new controls
 
-        self.setWindowIcon(QIcon(QPixmap(32, 32)))
+        # Create a simple icon for the window
+        icon_pixmap = QPixmap(32, 32)
+        icon_pixmap.fill(QColor("#0D6EFD"))
+        self.setWindowIcon(QIcon(icon_pixmap))
 
         self.setBackgroundImage()
 
     def addGlowEffect(self, widget):
-        glow = QGraphicsDropShadowEffect()
-        glow.setBlurRadius(10)
-        glow.setColor(QColor("#FFFFFF"))
-        glow.setOffset(0)
-        widget.setGraphicsEffect(glow)
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(5)
+        shadow.setColor(QColor("#ADB5BD"))
+        shadow.setOffset(0, 1)
+        widget.setGraphicsEffect(shadow)
 
     def setBackgroundImage(self):
-        # If you want to keep the background image feature
-        # Adjust path or remove if not needed
-        image_path = "background.jpg"
-        if os.path.exists(image_path):
-            pixmap = QPixmap(image_path)
-            scaled_pixmap = pixmap.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-            palette = self.palette()
-            palette.setBrush(QPalette.Background, QBrush(scaled_pixmap))
-            self.setPalette(palette)
-        else:
-            # Set a default background color
-            self.setStyleSheet("background-color: #2E3440;")
+        # For a professional look, we'll use a solid light background color
+        # instead of an image background
+        self.setStyleSheet("background-color: #F8F9FA;")
 
     def resizeEvent(self, event):
         self.setBackgroundImage()
@@ -410,78 +404,76 @@ class BatteryDataViewer(QWidget):
     def applyStyles(self):
         self.setStyleSheet("""
             QWidget {
-                background-color: #2E3440;
-                color: #D8DEE9;
+                background-color: #F8F9FA;
+                color: #212529;
             }
             QPushButton {
-                background-color: rgba(58, 63, 68, 200);
-                border: 2px solid #61AFEF;
+                background-color: #FFFFFF;
+                border: 1px solid #DEE2E6;
                 padding: 8px;
-                border-radius: 5px;
+                border-radius: 4px;
                 font-weight: bold;
-                font-size: 14px;
-                color: #D8DEE9;
+                font-size: 13px;
+                color: #0D6EFD;
             }
             QPushButton:hover {
-                background-color: #61AFEF;
-                color: #2E3440;
+                background-color: #F1F8FF;
+                border-color: #0D6EFD;
             }
             QPushButton:disabled {
-                background-color: rgba(58, 63, 68, 100);
-                border: 2px solid #555;
-                color: #777;
+                background-color: #E9ECEF;
+                border-color: #DEE2E6;
+                color: #ADB5BD;
             }
             QLabel {
-                font-size: 16px;
-                font-weight: bold;
-                color: #D8DEE9;
-                background-color: rgba(30, 30, 30, 180);
+                font-size: 13px;
+                color: #212529;
+                background-color: #FFFFFF;
                 padding: 8px;
-                border-radius: 8px;
+                border-radius: 4px;
+                border: 1px solid #DEE2E6;
             }
             QCheckBox {
-                font-size: 14px;
-                padding: 3px;
-                color: #D8DEE9;
-                background-color: rgba(30, 30, 30, 180);
-                border-radius: 5px;
+                font-size: 13px;
                 padding: 5px;
+                color: #212529;
+                background-color: transparent;
             }
             QCheckBox::indicator {
                 width: 16px;
                 height: 16px;
             }
             QProgressBar {
-                border: 2px solid #61AFEF;
-                border-radius: 5px;
+                border: 1px solid #DEE2E6;
+                border-radius: 4px;
                 text-align: center;
-                background-color: rgba(30, 30, 30, 180);
+                background-color: #E9ECEF;
+                height: 10px;
             }
             QProgressBar::chunk {
-                background-color: #42A5F5;
-                width: 1px;
+                background-color: #0D6EFD;
             }
             QGroupBox {
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: bold;
-                border: 2px solid #61AFEF;
-                border-radius: 6px;
+                border: 1px solid #DEE2E6;
+                border-radius: 4px;
                 margin-top: 1ex;
                 padding: 10px;
-                background-color: rgba(30, 30, 30, 180);
+                background-color: #FFFFFF;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding: 0 5px;
-                color: #88C0D0;
+                color: #0D6EFD;
             }
             QComboBox, QSpinBox {
-                border: 1px solid #61AFEF;
+                border: 1px solid #DEE2E6;
                 border-radius: 3px;
                 padding: 5px;
-                background-color: rgba(40, 40, 40, 200);
-                color: #D8DEE9;
+                background-color: #FFFFFF;
+                color: #212529;
                 min-height: 25px;
             }
             QComboBox::drop-down {
@@ -492,8 +484,9 @@ class BatteryDataViewer(QWidget):
                 height: 14px;
             }
             QScrollArea {
-                border: 2px solid #61AFEF;
-                border-radius: 6px;
+                border: 1px solid #DEE2E6;
+                border-radius: 4px;
+                background-color: #FFFFFF;
             }
         """)
 
@@ -559,15 +552,15 @@ class BatteryDataViewer(QWidget):
         """Display the most recent values of selected parameters."""
         self.get_selected_keys()
         if not self.selected_keys:
-            self.data_label.setText("⚠️ No parameter selected.")
+            self.data_label.setText("No parameter selected.")
             return
 
         if not self.data.get("time"):
-            self.data_label.setText("⚠️ No data available to display.")
+            self.data_label.setText("No data available to display.")
             return
 
         # Find the most recent data point for each selected key
-        display_text = "📊 Latest Battery Data:\n"
+        display_text = "Latest Battery Data:\n"
         
         for key in self.selected_keys:
             if key in self.data and self.data[key]:
@@ -595,14 +588,16 @@ class BatteryDataViewer(QWidget):
     def plot_data(self):
         self.get_selected_keys()
         if not self.selected_keys:
-            self.data_label.setText("⚠️ No parameter selected for plotting.")
+            self.data_label.setText("No parameter selected for plotting.")
             return
 
         if not self.data.get("time") or len(self.data["time"]) == 0:
-            self.data_label.setText("⚠️ No time data available for plotting.")
+            self.data_label.setText("No time data available for plotting.")
             return
 
         plt.figure(figsize=(10, 6))
+        plt.style.use('ggplot')  # Use a professional looking style
+        
         for key in self.selected_keys:
             if key in self.data and len(self.data[key]) > 0:
                 # Convert timestamps to relative time (minutes from start)
@@ -614,13 +609,25 @@ class BatteryDataViewer(QWidget):
                     # Make sure we have at least as many data points as timestamps
                     data_points = self.data[key][:len(relative_times)]
                     
-                    plt.plot(relative_times, data_points, label=key, marker='o')
+                    plt.plot(relative_times, data_points, label=key, marker='o', linewidth=2)
 
-        plt.xlabel("Time (minutes)")
-        plt.ylabel("Values")
-        plt.title("Battery Measurements Over Time")
-        plt.legend()
-        plt.grid(True)
+        plt.xlabel("Time (minutes)", fontsize=12)
+        
+        # Set Y-axis label based on measurement type
+        if any("voltage" in k.lower() for k in self.selected_keys):
+            plt.ylabel("Voltage (V)", fontsize=12)
+        elif any("current" in k.lower() for k in self.selected_keys):
+            plt.ylabel("Current (A)", fontsize=12)
+        elif any("power" in k.lower() for k in self.selected_keys):
+            plt.ylabel("Power (W)", fontsize=12)
+        elif any("life" in k.lower() for k in self.selected_keys):
+            plt.ylabel("Battery Life (%)", fontsize=12)
+        else:
+            plt.ylabel("Values", fontsize=12)
+            
+        plt.title("Battery Measurements Over Time", fontsize=14)
+        plt.legend(frameon=True)
+        plt.grid(True, alpha=0.3)
         plt.tight_layout()
         plt.show()
 
