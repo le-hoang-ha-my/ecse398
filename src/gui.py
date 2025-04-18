@@ -4,6 +4,7 @@ import json
 import asyncio
 import threading
 import time
+import re
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QCheckBox,
@@ -114,17 +115,16 @@ class BluetoothWorker(QThread):
             # Add to our chunks list
             self.received_chunks.append(chunk)
             
-            # Check if this is the end of the data stream (simple heuristic)
-            # A better approach would be if the BLE device indicated this is the last chunk
-            # For now, we'll use a timeout-based approach in the connection_monitor
+            # Update the connection monitor so it knows we got a chunk
+            self.chunks_in_progress = True
             
         except Exception as e:
             print(f"Error processing notification: {str(e)}")
     
     async def connection_monitor(self):
         """Monitor the connection status and reconnect if needed"""
-        chunk_timeout = 1.0  # Time to wait for more chunks before considering transmission complete
-        last_chunk_time = 0
+        total_timeout = 30.0  # Maximum time (seconds) to wait for a complete transmission
+        transmission_start_time = 0
         
         while True:
             if not self.is_connected or not self.client.is_connected:
@@ -136,17 +136,33 @@ class BluetoothWorker(QThread):
                 asyncio.create_task(self.scan_and_connect())
                 return
             
-            # Check if chunks reception has timed out
-            if self.chunks_in_progress and self.received_chunks and time.time() - last_chunk_time > chunk_timeout:
-                self.chunks_in_progress = False
-                # Make a copy of the chunks to avoid race conditions
-                chunks_copy = self.received_chunks.copy()
-                self.received_chunks = []
-                self.signals.chunks_complete.emit(chunks_copy)
+            current_time = time.time()
             
-            # Update last_chunk_time if we have received chunks
-            if self.received_chunks and self.chunks_in_progress:
-                last_chunk_time = time.time()
+            # If we've started receiving chunks, update the start time
+            if self.chunks_in_progress and self.received_chunks and transmission_start_time == 0:
+                transmission_start_time = current_time
+                self.signals.connection_status.emit(True, "Data transmission started")
+            
+            # Check if transmission should be considered complete
+            if self.chunks_in_progress and self.received_chunks:
+                # Conditions to consider transmission complete:
+                # 1. Any chunk contains a closing bracket "]"
+                # 2. Total transmission time has exceeded total_timeout seconds
+                if (any("]" in chunk for chunk in self.received_chunks)) or \
+                   (transmission_start_time > 0 and current_time - transmission_start_time > total_timeout):
+                    
+                    self.signals.connection_status.emit(True, "Data transmission complete")
+                    self.chunks_in_progress = False
+                    
+                    # Make a copy of the chunks to avoid race conditions
+                    chunks_copy = self.received_chunks.copy()
+                    self.received_chunks = []
+                    
+                    # Reset transmission tracking
+                    transmission_start_time = 0
+                    
+                    # Emit the complete signal with collected chunks
+                    self.signals.chunks_complete.emit(chunks_copy)
             
             await asyncio.sleep(0.1)
     
@@ -157,8 +173,7 @@ class BluetoothWorker(QThread):
             return False
         
         try:
-            # Format the command string
-            command = f"#{battery_num};{measurement_type};#{measurement_count}"
+            command = f"{battery_num};{measurement_type};#{measurement_count}"
             
             # Clear any previous chunks
             self.received_chunks = []
@@ -173,7 +188,6 @@ class BluetoothWorker(QThread):
             self.signals.connection_status.emit(True, f"Error sending command: {str(e)}")
             return False
 
-
 class BatteryDataViewer(QWidget):
     def __init__(self):
         super().__init__()
@@ -185,7 +199,7 @@ class BatteryDataViewer(QWidget):
         self.selected_keys = []  # User-selected parameters
         self.current_battery = 1
         self.current_measurement_type = "Voltage"
-        self.current_measurement_count = 3
+        self.current_measurement_count = 100
         
         # Initialize Bluetooth worker
         self.bluetooth_worker = BluetoothWorker()
@@ -227,38 +241,100 @@ class BatteryDataViewer(QWidget):
         self.data_label.setText(f"Data received: {full_data}")
         
         try:
-            # Parse the data - expecting a list format
-            if full_data.startswith('[') and full_data.endswith(']'):
-                # Try to parse as JSON
-                parsed_data = json.loads(full_data)
+            # Check if the data is in a list format
+            if self.chunks_in_progress and self.received_chunks:
+                # Clean up the data - handle extra spaces and commas
+                cleaned_data = self.clean_data_string(full_data)
+                
+                # Parse the data values
+                values = self.parse_numeric_values(cleaned_data)
                 
                 # Add timestamp for when we received this data
                 current_time = time.time()
-                self.data["time"].append(current_time)
                 
                 # Add the measurement data with the current measurement type as the key
                 measurement_key = self.current_measurement_type.lower()
                 if measurement_key not in self.data:
                     self.data[measurement_key] = []
+                    self.data["time"] = []
                 
-                # If parsed_data is a list, add each value
-                if isinstance(parsed_data, list):
-                    for value in parsed_data:
-                        self.data[measurement_key].append(float(value))
-                else:
-                    # If it's a single value
-                    self.data[measurement_key].append(float(parsed_data))
+                # Add each value with its own timestamp
+                for value in values:
+                    self.data["time"].append(current_time)
+                    self.data[measurement_key].append(value)
+                    # Increment time slightly for each value so plots work correctly
+                    current_time += 0.01
                 
                 # Update the UI to show we have new data
                 self.update_checkboxes()
                 self.show_recent()
             else:
-                self.data_label.setText(f"Received data is not in the expected format: {full_data}")
+                # Handle the case of a single value (not in a list)
+                try:
+                    # Try to convert to a number
+                    value = float(full_data)
+                    
+                    # Add timestamp and value
+                    current_time = time.time()
+                    
+                    measurement_key = self.current_measurement_type.lower()
+                    if measurement_key not in self.data:
+                        self.data[measurement_key] = []
+                        self.data["time"] = []
+                    
+                    self.data["time"].append(current_time)
+                    self.data[measurement_key].append(value)
+                    
+                    # Update UI
+                    self.update_checkboxes()
+                    self.show_recent()
+                except ValueError:
+                    self.data_label.setText(f"Received data is not in the expected format: {full_data}")
         
-        except json.JSONDecodeError:
-            self.data_label.setText(f"Could not parse data as JSON: {full_data}")
         except Exception as e:
             self.data_label.setText(f"Error processing data: {str(e)}")
+    
+    def clean_data_string(self, data_string):
+        """Clean up data string with extra spaces or commas."""
+        # Remove the brackets
+        data_string = data_string.strip('[]')
+        
+        # Replace multiple spaces with a single space
+        data_string = re.sub(r'\s+', ' ', data_string)
+        
+        # Replace multiple commas with a single comma
+        data_string = re.sub(r',+', ',', data_string)
+        
+        # Replace space comma with just comma
+        data_string = re.sub(r'\s*,\s*', ',', data_string)
+        
+        # Replace space with comma to standardize
+        data_string = re.sub(r'\s+', ',', data_string)
+        
+        # Remove any commas at the start or end
+        data_string = data_string.strip(',')
+        
+        return data_string
+    
+    def parse_numeric_values(self, cleaned_data):
+        """Parse numeric values from a cleaned data string."""
+        values = []
+        if not cleaned_data:
+            return values
+        
+        # Split by comma
+        parts = cleaned_data.split(',')
+        
+        # Convert each part to a float if possible
+        for part in parts:
+            part = part.strip()
+            if part:
+                try:
+                    values.append(float(part))
+                except ValueError:
+                    print(f"Warning: could not convert '{part}' to float")
+        
+        return values
 
     def send_request(self):
         """Send a request to the BLE device based on current settings"""
@@ -320,8 +396,8 @@ class BatteryDataViewer(QWidget):
         
         # Measurement count
         self.measurement_count = QSpinBox()
-        self.measurement_count.setRange(1, 20)  # Reasonable range for measurements
-        self.measurement_count.setValue(3)
+        self.measurement_count.setRange(1, 200)
+        self.measurement_count.setValue(100)
         command_layout.addRow("# of Measurements:", self.measurement_count)
         
         command_group.setLayout(command_layout)
@@ -612,24 +688,20 @@ class BatteryDataViewer(QWidget):
             return
 
         plt.figure(figsize=(10, 6))
-        plt.style.use('ggplot')  # Use a professional looking style
+        plt.style.use('ggplot')
         
         for key in self.selected_keys:
             if key in self.data and len(self.data[key]) > 0:
-                # Convert timestamps to relative time (minutes from start)
-                # This makes the plot more readable
                 if len(self.data["time"]) > 0:
                     start_time = self.data["time"][0]
                     relative_times = [(t - start_time) / 60 for t in self.data["time"]]
                     
-                    # Make sure we have at least as many data points as timestamps
                     data_points = self.data[key][:len(relative_times)]
                     
                     plt.plot(relative_times, data_points, label=key, marker='o', linewidth=2)
 
         plt.xlabel("Time (minutes)", fontsize=12)
         
-        # Set Y-axis label based on measurement type
         if any("voltage" in k.lower() for k in self.selected_keys):
             plt.ylabel("Voltage (V)", fontsize=12)
         elif any("current" in k.lower() for k in self.selected_keys):
