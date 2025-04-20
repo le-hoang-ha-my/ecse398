@@ -173,7 +173,7 @@ class BluetoothWorker(QThread):
             return False
         
         try:
-            command = f"{battery_num};{measurement_type};#{measurement_count}"
+            command = f"{battery_num};{measurement_type};{measurement_count}"
             
             # Clear any previous chunks
             self.received_chunks = []
@@ -249,8 +249,7 @@ class BatteryDataViewer(QWidget):
                 # Parse the data values
                 values = self.parse_numeric_values(cleaned_data)
                 
-                # Add timestamp for when we received this data
-                current_time = time.time()
+                base_time = time.time()
                 
                 # Add the measurement data with the current measurement type as the key
                 measurement_key = self.current_measurement_type.lower()
@@ -258,12 +257,10 @@ class BatteryDataViewer(QWidget):
                     self.data[measurement_key] = []
                     self.data["time"] = []
                 
-                # Add each value with its own timestamp
-                for value in values:
-                    self.data["time"].append(current_time)
+                for i, value in enumerate(values):
+                    calculated_time = base_time + (i * 0.01)
+                    self.data["time"].append(calculated_time)
                     self.data[measurement_key].append(value)
-                    # Increment time slightly for each value so plots work correctly
-                    current_time += 0.01
                 
                 # Update the UI to show we have new data
                 self.update_checkboxes()
@@ -271,23 +268,38 @@ class BatteryDataViewer(QWidget):
             else:
                 # Handle the case of a single value (not in a list)
                 try:
-                    # Try to convert to a number
-                    value = float(full_data)
+                    # Clean up the data regardless of format
+                    cleaned_data = self.clean_data_string(full_data)
                     
-                    # Add timestamp and value
-                    current_time = time.time()
+                    # Parse the data values
+                    values = self.parse_numeric_values(cleaned_data)
                     
-                    measurement_key = self.current_measurement_type.lower()
-                    if measurement_key not in self.data:
-                        self.data[measurement_key] = []
-                        self.data["time"] = []
-                    
-                    self.data["time"].append(current_time)
-                    self.data[measurement_key].append(value)
-                    
-                    # Update UI
-                    self.update_checkboxes()
-                    self.show_recent()
+                    if values:  # Make sure we have values to process
+                        # Use fixed time interval of 10ms between measurements
+                        base_time = time.time()  # Current time as base
+                        
+                        # Add the measurement data with the current measurement type as the key
+                        measurement_key = self.current_measurement_type.lower()
+                        
+                        # Initialize data arrays if needed
+                        if measurement_key not in self.data:
+                            self.data[measurement_key] = []
+                        
+                        # Ensure time array exists
+                        if "time" not in self.data:
+                            self.data["time"] = []
+                        
+                        # Add each value with a calculated timestamp (10ms intervals)
+                        for i, value in enumerate(values):
+                            calculated_time = base_time + (i * 0.01)  # 10ms = 0.01 seconds
+                            self.data["time"].append(calculated_time)
+                            self.data[measurement_key].append(value)
+                        
+                        # Update the UI to show we have new data
+                        self.update_checkboxes()
+                        self.show_recent()
+                    else:
+                        self.data_label.setText("No valid numeric values found in the received data")
                 except ValueError:
                     self.data_label.setText(f"Received data is not in the expected format: {full_data}")
         
@@ -297,7 +309,11 @@ class BatteryDataViewer(QWidget):
     def clean_data_string(self, data_string):
         """Clean up data string with extra spaces or commas."""
         # Remove the brackets
-        data_string = data_string.strip('[]')
+        data_string = data_string.strip()
+        if data_string.startswith('['):
+            data_string = data_string[1:]
+        if data_string.endswith(']'):
+            data_string = data_string[:-1]
         
         # Replace multiple spaces with a single space
         data_string = re.sub(r'\s+', ' ', data_string)
@@ -315,7 +331,7 @@ class BatteryDataViewer(QWidget):
         data_string = data_string.strip(',')
         
         return data_string
-    
+
     def parse_numeric_values(self, cleaned_data):
         """Parse numeric values from a cleaned data string."""
         values = []
