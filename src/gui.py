@@ -401,7 +401,7 @@ class BatteryDataViewer(QWidget):
         
         # Battery number selector
         self.battery_number = QSpinBox()
-        self.battery_number.setRange(1, 4)  # Assuming batteries 1-4
+        self.battery_number.setRange(1, 2)
         self.battery_number.setValue(1)
         command_layout.addRow("Battery #:", self.battery_number)
         
@@ -412,7 +412,7 @@ class BatteryDataViewer(QWidget):
         
         # Measurement count
         self.measurement_count = QSpinBox()
-        self.measurement_count.setRange(1, 200)
+        self.measurement_count.setRange(1, 300)
         self.measurement_count.setValue(100)
         command_layout.addRow("# of Measurements:", self.measurement_count)
         
