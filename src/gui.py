@@ -241,28 +241,45 @@ class BatteryDataViewer(QWidget):
         self.data_label.setText(f"Data received: {full_data}")
         
         try:
-            # Check if the data is in a list format
+            # Special handling for Life measurement type
+            if self.current_measurement_type.lower() == "life":
+                # Battery life contains a single value without brackets
+                try:
+                    cleaned_data = full_data.strip()
+                    battery_life = float(cleaned_data)
+                    
+                    measurement_key = "life"
+                    base_time = time.time()
+                    
+                    self.data[measurement_key] = []
+                    self.data["time"] = []
+                    
+                    self.data["time"].append(base_time)
+                    self.data[measurement_key].append(battery_life)
+                    
+                    self.update_checkboxes()
+                    self.show_recent()
+                    return
+                except ValueError as e:
+                    self.data_label.setText(f"Error parsing battery life value: {str(e)}")
+                    return
+            
             if full_data.strip() and ('[' in full_data or ']' in full_data):
-                # Clean up the data - handle extra spaces and commas
                 cleaned_data = self.clean_data_string(full_data)
                 
-                # Parse the data values
                 values = self.parse_numeric_values(cleaned_data)
                 
                 base_time = time.time()
                 
-                # Add the measurement data with the current measurement type as the key
                 measurement_key = self.current_measurement_type.lower()
-                if measurement_key not in self.data:
-                    self.data[measurement_key] = []
-                    self.data["time"] = []
+                self.data[measurement_key] = []
+                self.data["time"] = []
                 
                 for i, value in enumerate(values):
                     calculated_time = base_time + (i * 0.01)
                     self.data["time"].append(calculated_time)
                     self.data[measurement_key].append(value)
                 
-                # Update the UI to show we have new data
                 self.update_checkboxes()
                 self.show_recent()
             else:
@@ -281,13 +298,8 @@ class BatteryDataViewer(QWidget):
                         # Add the measurement data with the current measurement type as the key
                         measurement_key = self.current_measurement_type.lower()
                         
-                        # Initialize data arrays if needed
-                        if measurement_key not in self.data:
-                            self.data[measurement_key] = []
-                        
-                        # Ensure time array exists
-                        if "time" not in self.data:
-                            self.data["time"] = []
+                        self.data[measurement_key] = []
+                        self.data["time"] = []
                         
                         # Add each value with a calculated timestamp (10ms intervals)
                         for i, value in enumerate(values):
@@ -644,7 +656,7 @@ class BatteryDataViewer(QWidget):
         for key in self.data.keys():
             if key != "time":
                 checkbox = QCheckBox(key)
-                checkbox.setChecked(True)  # Default to checked
+                checkbox.setChecked(True)
                 self.addGlowEffect(checkbox)
                 self.checkbox_layout.addWidget(checkbox)
                 self.checkboxes[key] = checkbox
@@ -684,7 +696,7 @@ class BatteryDataViewer(QWidget):
                         display_text += f"{key}: {recent_value:.2f} A\n"
                     elif "power" in key.lower():
                         display_text += f"{key}: {recent_value:.2f} W\n"
-                    elif "life" in key.lower() or "battery" in key.lower():
+                    elif "life" in key.lower():
                         display_text += f"{key}: {recent_value:.1f}%\n"
                     else:
                         display_text += f"{key}: {recent_value}\n"
@@ -700,7 +712,7 @@ class BatteryDataViewer(QWidget):
             return
 
         if not self.data.get("time") or len(self.data["time"]) == 0:
-            self.data_label.setText("No time data available for plotting.")
+            self.data_label.setText("No data available for plotting.")
             return
 
         plt.figure(figsize=(10, 6))
@@ -712,9 +724,18 @@ class BatteryDataViewer(QWidget):
                     start_time = self.data["time"][0]
                     relative_times = [(t - start_time) / 60 for t in self.data["time"]]
                     
-                    data_points = self.data[key][:len(relative_times)]
-                    
-                    plt.plot(relative_times, data_points, label=key, marker='o', linewidth=2)
+                    # Special handling for battery life data (which typically has only one data point)
+                    if "life" in key.lower() and len(self.data[key]) == 1:
+                        constant_value = self.data[key][0]
+                        plt.plot([relative_times[0]], [constant_value], label=key, marker='o', markersize=8)
+                    else:
+                        # Regular data handling for other measurements
+                        # Make sure we use the lesser length between times and data points
+                        min_length = min(len(relative_times), len(self.data[key]))
+                        data_points = self.data[key][:min_length]
+                        times_to_plot = relative_times[:min_length]
+                        
+                        plt.plot(times_to_plot, data_points, label=key, marker='o', linewidth=2)
 
         plt.xlabel("Time (minutes)", fontsize=12)
         
