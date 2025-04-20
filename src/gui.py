@@ -242,7 +242,7 @@ class BatteryDataViewer(QWidget):
         
         try:
             # Check if the data is in a list format
-            if self.chunks_in_progress and self.received_chunks:
+            if full_data.strip() and ('[' in full_data or ']' in full_data):
                 # Clean up the data - handle extra spaces and commas
                 cleaned_data = self.clean_data_string(full_data)
                 
